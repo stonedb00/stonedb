@@ -1,0 +1,74 @@
+upstream php {
+server unix:/run/php/php7.3-fpm.sock;
+}
+
+server {
+  listen 80;
+  server_name sampledomain.com www.sampledomain.com;
+  rewrite ^/(.*) https://sampledomain.com/$1 permanent;
+}
+
+server {
+    server_name www.sampledomain.com;
+    listen 443 ssl http2;
+    ssl_prefer_server_ciphers On;
+    ssl_certificate /etc/letsencrypt/live/www.sampledomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/www.sampledomain.com/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/www.sampledomain.com/chain.pem;
+    ssl_session_cache shared:SSL:128m;
+    ssl_dhparam /etc/ssl/certs/dhparam.pem;
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    add_header                Strict-Transport-Security max-age=31536000;
+    return 301 https://sampledomain.com$request_uri;
+}
+
+server {
+    server_name sampledomain.com;
+    listen 443 ssl http2;
+    ssl_prefer_server_ciphers On;
+    ssl_certificate /etc/letsencrypt/live/sampledomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/sampledomain.com/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/sampledomain.com/chain.pem;
+    ssl_session_cache shared:SSL:128m;
+    ssl_dhparam /etc/ssl/certs/dhparam.pem;
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    add_header                Strict-Transport-Security max-age=31536000;
+
+     root /var/www/sampledomain/;
+	 
+	   aio threads;
+     directio 5m;
+  
+  
+    index index.php;
+	
+	location / {
+	  rewrite \.(?:jpe?g|gif|png)$ /wp-content/plugins/adaptive-images/adaptive-images-script.php last;
+		try_files             $uri $uri/ /index.php?$args;
+	}
+
+	location = /favicon.ico {
+		log_not_found         off;
+		access_log            off;
+	}
+ 
+	location = /robots.txt {
+		allow                 all;
+		log_not_found         off;
+		access_log            off;
+	}
+ 
+	location ~ .php$ {
+		include               fastcgi.conf;
+		fastcgi_pass unix:/run/php/php7.3-fpm.sock;
+	}
+ 
+	location ~* .(js|css|ico)$ {
+		expires               60d;
+		log_not_found         off;
+	}
+	 include rocket-nginx/default.conf;
+	 include snippets/phpmyadmin.conf;
+}
